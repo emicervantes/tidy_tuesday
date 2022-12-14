@@ -1,0 +1,140 @@
+---
+title: "12/13/22 TidyTuesday"
+author: "Emi"
+date: '2022-12-14'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(maps)
+```
+
+
+# Downloading Datasets
+
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2022-12-13')
+tuesdata <- tidytuesdayR::tt_load(2022, week = 50)
+
+state_retail <- tuesdata$state_retail
+coverage_codes <- tuesdata$coverage_codes
+```
+
+**Monthly State Retail Sales**: This data comes from the United States Census Bureau's Monthly State Retail Sales - Census Bureau's new experimental data product featuring modeled state-level retail sales
+
+
+# EDA
+
+```{r}
+glimpse(state_retail)
+```
+
+```{r}
+state_retail %>% 
+  group_by(state_abbr)
+```
+
+```{r}
+table(state_retail$state_abbr)
+```
+
+```{r}
+table(state_retail$month)
+```
+
+```{r}
+table(state_retail$subsector)
+```
+
+```{r}
+table(state_retail$year)
+```
+
+```{r}
+coverage_codes[2]
+```
+
+```{r}
+ggplot(data = state_retail,
+       aes(x = month, 
+           fill = subsector)) +
+  geom_bar() + 
+  theme_bw() + 
+  scale_x_discrete("Month",limits = c("Jan","Feb","Mar","Apr","May","Jun", "Jul","Aug","Sep","Oct","Nov","Dec")) + 
+  labs(title = "Month and Year", y = "Count")
+```
+
+```{r}
+ggplot(data = state_retail,
+       aes(x = as.double(change_yoy))) + 
+  geom_histogram(binwidth = 15)+
+  theme_bw()
+```
+
+```{r}
+summarize(state_retail,
+          mean(is.na(as.double(change_yoy))),
+          median(is.na(as.double(change_yoy))),
+          min(is.na(as.double(change_yoy))),
+          max(is.na(as.double(change_yoy)))
+)
+```
+
+```{r}
+state_retail$change_yoy
+```
+
+```{r}
+df <- state_retail %>% 
+        filter(change_yoy != "S") %>% 
+        mutate(change_yoy = as.numeric(change_yoy))
+```
+
+```{r}
+summary(df$change_yoy)
+```
+
+```{r}
+ggplot(data = df,
+       aes(x = change_yoy)) + 
+  geom_histogram(binwidth = 15)+
+  labs(title = "YOY Percent Change Distribution", x = "YOY Percent Change", y = "Count") +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = df,
+       aes(x = month,
+           y = change_yoy,
+           color = coverage_code)) + 
+  geom_point()+
+  scale_x_discrete("Month",limits = c("Jan","Feb","Mar","Apr","May","Jun", "Jul","Aug","Sep","Oct","Nov","Dec")) + 
+  labs(title = "YOY Percent Change Over Months", y = "YOY Percent Change") +
+  theme_bw()
+```
+
+```{r}
+states <- map_data("state")
+ggplot() + 
+  geom_polygon(data = states, aes(x = long, y = lat, group = group),
+               color = "black", fill = "lightblue")
+```
+
+```{r}
+df2 <- df %>% 
+        filter(year == 2020 & month == 9 & subsector == "total")
+df2
+```
+
+```{r}
+usmap::plot_usmap(data = df2, values = "change_yoy", color = "grey", size = 0.25) +
+  labs(title = "YOY Percentage Change")
+```
+
