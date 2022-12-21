@@ -1,0 +1,98 @@
+---
+title: "Tidy Tuesday 12/21"
+author: "Emi"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(zoo)
+```
+
+# Weather Forecast
+
+The data includes 16 months of forecasts and observations from 167 cities, as well as a separate data.frame of information about those cities and some other American cities.
+
+## Loading the dataset
+
+```{r}
+tuesdata <- tidytuesdayR::tt_load('2022-12-20')
+tuesdata <- tidytuesdayR::tt_load(2022, week = 51)
+
+weather_forecasts <- tuesdata$weather_forecasts
+cities <- tuesdata$cities
+outlook_meanings <- tuesdata$outlook_meanings
+```
+
+## EDA
+
+```{r}
+glimpse(weather_forecasts)
+table(weather_forecasts$date)[1]
+tail(table(weather_forecasts$date), n = 1)
+```
+
+`weather_forecasts.csv`: Weather recorded from 1/30/21 to 6/1/22
+
+```{r}
+weather_forecasts %>% 
+  ggplot(aes(x = date, y = observed_temp, color = state)) + 
+    geom_line() +
+    labs(title = "Observed Temperature of Different States Over Time", x = "Time", y = "Temperature") +
+    theme_bw()
+
+```
+
+```{r}
+# Get the percentage difference between predicted and observed temperature
+error = (weather_forecasts$observed_temp - weather_forecasts$forecast_temp)^2
+forecasts_df <- cbind(weather_forecasts, error)
+forecasts_df 
+```
+
+```{r}
+forecasts_df[forecasts_df$state == "CA",] %>% 
+  ggplot(aes(x = date, y = observed_temp, color = city)) + 
+  geom_line() +
+  labs(title = "California Temperature Over Time", x = "Date", y = "Temperature") +
+  theme_bw()
+```
+
+```{r}
+# Section the time into four seasons: 
+yq <- as.yearqtr(as.yearmon(forecasts_df$date, "%m/%d/%y") + 1/12)
+forecasts_df$season <- factor(format(yq, "%q"), levels = 1:4,
+                              labels = c("Win","Spr","Sum","Fal"))
+```
+
+```{r}
+# Get the average for every season and city
+ forecasts_df <- forecasts_df %>% 
+                    group_by(city, season) %>% 
+                    mutate(avg_season = mean(observed_temp, na.rm = TRUE))
+```
+
+```{r}
+forecasts_df %>% 
+  group_by(city, state, season) %>% 
+  summarize(avg_ob_sea = mean(observed_temp, na.rm = TRUE), avg_pred_sea = mean(forecast_temp, na.rm = TRUE)) %>% 
+  filter(state == "CA") %>% 
+  ggplot(aes(x = season, group = city, color = city)) +
+    geom_line(aes(y = avg_ob_sea))+
+    geom_point(aes(y = avg_ob_sea)) +
+    geom_line(aes(y = avg_pred_sea), linetype = "dashed") + 
+    geom_point(aes(y = avg_pred_sea)) +
+    scale_linetype_manual("Avg Temperature",values=c("Observed"=2,"Predicted"=1)) +
+    theme_bw() +
+    labs(title = "Average Temperature by Season", x = "Season", y = "Temperature", color = "City", caption = "Dashed line represents predicted temperature and solid line represents observed temperature")
+```
+```
+
+
